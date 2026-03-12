@@ -40,19 +40,26 @@ const Dashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
 
+  const [debugLog, setDebugLog] = useState([]);
+  
+  const addLog = (msg, type = 'info') => {
+    setDebugLog(prev => [{ msg, type, time: new Date().toLocaleTimeString() }, ...prev]);
+  };
+
   const productsCollection = collection(db, 'products');
 
   const fetchProducts = async () => {
     setLoading(true);
+    addLog("Fetching products from database 'admin56'...");
     try {
       const data = await getDocs(productsCollection);
       setProducts(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+      addLog(`Loaded ${data.docs.length} products.`, 'success');
     } catch (err) {
+      addLog(`Database Error: ${err.message}`, 'error');
       console.error("Database Connection Error:", err);
       if (err.message.includes("Database '(default)' not found")) {
         alert("CRITICAL ERROR: Firestore Database not found! \n\nPlease go to your Firebase Console -> Firestore Database and click 'Create Database'.");
-      } else {
-        alert("Database Error: " + err.message);
       }
     }
     setLoading(false);
@@ -75,6 +82,7 @@ const Dashboard = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      addLog(`Image selected: ${file.name} (${file.size} bytes)`);
       setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -89,6 +97,7 @@ const Dashboard = () => {
       if (!imageFile) return resolve(formData.image || '');
       
       setIsUploading(true);
+      addLog("Starting image upload to Storage...");
       const storageRef = ref(storage, `products/${Date.now()}_${imageFile.name}`);
       const uploadTask = uploadBytesResumable(storageRef, imageFile);
 
@@ -99,12 +108,14 @@ const Dashboard = () => {
           setUploadProgress(progress);
         },
         (error) => {
+          addLog(`Upload Failed: ${error.message}`, 'error');
           console.error("Upload error:", error);
           setIsUploading(false);
           reject(error);
         },
         async () => {
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          addLog("Image uploaded successfully!", 'success');
           setIsUploading(false);
           setUploadProgress(0);
           resolve(downloadURL);
@@ -115,16 +126,16 @@ const Dashboard = () => {
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
+    addLog("Saving product...");
     try {
       let imageUrl = formData.image;
       
-      // If a new file is selected, upload it
       if (imageFile) {
         try {
           imageUrl = await uploadImage();
         } catch (uploadErr) {
-          console.error("Upload Error Details:", uploadErr);
-          alert(`Photo upload failed! Possible reasons:\n1. Firebase Storage is not enabled (Go to Storage tab in Console and click Get Started).\n2. Security rules are blocking the upload.\n\nError: ${uploadErr.message}`);
+          addLog(`Step 1 (Upload) failed: ${uploadErr.message}`, 'error');
+          alert(`Photo upload failed! Error: ${uploadErr.message}`);
           return;
         }
       }
@@ -132,31 +143,36 @@ const Dashboard = () => {
       const productData = { 
         ...formData, 
         image: imageUrl,
-        price: parseFloat(formData.price) // Ensure price is a number
+        price: parseFloat(formData.price)
       };
 
       try {
+        addLog("Writing to Firestore 'admin56'...");
         if (editingId) {
           const productDoc = doc(db, 'products', editingId);
           await updateDoc(productDoc, productData);
+          addLog("Update successful!", 'success');
         } else {
           await addDoc(productsCollection, productData);
+          addLog("Product created successful!", 'success');
         }
         alert("Product saved successfully!");
         resetForm();
         fetchProducts();
       } catch (dbErr) {
+        addLog(`Step 2 (Firestore) failed: ${dbErr.message}`, 'error');
         console.error("Firestore Error Details:", dbErr);
         if (dbErr.code === 'permission-denied') {
-          alert("Permission Denied! Make sure you have created the Firestore Database (in test mode) in your Firebase Console.");
+          alert("Permission Denied! Check your Firestore Rules.");
         } else {
           alert(`Failed to save to database: ${dbErr.message}`);
         }
       }
 
     } catch (err) {
+      addLog(`Unexpected Error: ${err.message}`, 'error');
       console.error("General Error:", err);
-      alert("An unexpected error occurred. Check browser console for details.");
+      alert("An unexpected error occurred.");
     }
   };
 
@@ -169,11 +185,14 @@ const Dashboard = () => {
   };
 
   const handleTestConnection = async () => {
+    addLog("Testing database connection...");
     try {
-      await getDocs(productsCollection);
-      alert("✅ Success! Database is connected and ready.");
+      const snap = await getDocs(productsCollection);
+      addLog(`Connection Test: OK (found ${snap.docs.length} docs)`, 'success');
+      alert("✅ Success! Database is connected.");
     } catch (err) {
-      alert("❌ Database Error: " + err.message + "\n\nPlease make sure Firestore is enabled in your Firebase Console.");
+      addLog(`Connection Test: FAILED (${err.message})`, 'error');
+      alert("❌ Database Error: " + err.message);
     }
   };
 
@@ -192,10 +211,13 @@ const Dashboard = () => {
   const handleDeleteProduct = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
+        addLog(`Deleting product ${id}...`);
         const productDoc = doc(db, 'products', id);
         await deleteDoc(productDoc);
+        addLog("Delete successful!", 'success');
         fetchProducts();
       } catch (err) {
+        addLog(`Delete failed: ${err.message}`, 'error');
         console.error("Error deleting product:", err);
       }
     }
@@ -206,7 +228,7 @@ const Dashboard = () => {
       <header className="dashboard-header">
         <div className="header-info">
           <h1>Product Management</h1>
-          <p>{products.length} Items in Inventory</p>
+          <p>{products.length} Items in Inventory (DB: admin56)</p>
         </div>
         <div className="header-actions">
           <button className="seed-btn" onClick={handleTestConnection} style={{ background: '#007aff', color: 'white' }}>
@@ -220,6 +242,7 @@ const Dashboard = () => {
           </button>
         </div>
       </header>
+
 
       {showForm && (
         <div className="modal-overlay">
@@ -325,6 +348,22 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {debugLog.length > 0 && (
+        <div className="debug-console">
+          <div className="debug-header">
+            <span>System Diagnostics (DB: admin56)</span>
+            <button onClick={() => setDebugLog([])}>Clear</button>
+          </div>
+          <div className="debug-body">
+            {debugLog.map((log, i) => (
+              <div key={i} className={`debug-item ${log.type}`}>
+                <span className="debug-time">[{log.time}]</span> {log.msg}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

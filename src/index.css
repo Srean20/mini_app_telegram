@@ -591,3 +591,49 @@ button {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+.debug-console {
+  margin-top: 40px;
+  background: #1a1a1a;
+  color: #00ff00;
+  font-family: 'Courier New', Courier, monospace;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-hover);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.debug-header {
+  padding: 10px 16px;
+  background: #2a2a2a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.debug-header button {
+  background: transparent;
+  color: #888;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border: 1px solid #444;
+  border-radius: 4px;
+}
+
+.debug-body {
+  padding: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.85rem;
+}
+
+.debug-item {
+  margin-bottom: 4px;
+}
+
+.debug-time { color: #888; margin-right: 8px; }
+.debug-item.success { color: #00ff00; }
+.debug-item.error { color: #ff3b30; }
+.debug-item.info { color: #007aff; }
