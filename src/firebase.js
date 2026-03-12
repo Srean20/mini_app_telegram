@@ -18,6 +18,6 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Services
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getFirestore(app, "admin56");
 export const storage = getStorage(app);
 export default app;
