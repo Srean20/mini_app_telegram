@@ -111,21 +111,47 @@ const Dashboard = () => {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     try {
-      const imageUrl = await uploadImage();
-      const productData = { ...formData, image: imageUrl };
-
-      if (editingId) {
-        const productDoc = doc(db, 'products', editingId);
-        await updateDoc(productDoc, productData);
-      } else {
-        await addDoc(productsCollection, productData);
+      let imageUrl = formData.image;
+      
+      // If a new file is selected, upload it
+      if (imageFile) {
+        try {
+          imageUrl = await uploadImage();
+        } catch (uploadErr) {
+          console.error("Upload Error Details:", uploadErr);
+          alert(`Photo upload failed! Possible reasons:\n1. Firebase Storage is not enabled (Go to Storage tab in Console and click Get Started).\n2. Security rules are blocking the upload.\n\nError: ${uploadErr.message}`);
+          return;
+        }
       }
 
-      resetForm();
-      fetchProducts();
+      const productData = { 
+        ...formData, 
+        image: imageUrl,
+        price: parseFloat(formData.price) // Ensure price is a number
+      };
+
+      try {
+        if (editingId) {
+          const productDoc = doc(db, 'products', editingId);
+          await updateDoc(productDoc, productData);
+        } else {
+          await addDoc(productsCollection, productData);
+        }
+        alert("Product saved successfully!");
+        resetForm();
+        fetchProducts();
+      } catch (dbErr) {
+        console.error("Firestore Error Details:", dbErr);
+        if (dbErr.code === 'permission-denied') {
+          alert("Permission Denied! Make sure you have created the Firestore Database (in test mode) in your Firebase Console.");
+        } else {
+          alert(`Failed to save to database: ${dbErr.message}`);
+        }
+      }
+
     } catch (err) {
-      console.error("Error saving product:", err);
-      alert("Failed to save product. Please try again.");
+      console.error("General Error:", err);
+      alert("An unexpected error occurred. Check browser console for details.");
     }
   };
 
