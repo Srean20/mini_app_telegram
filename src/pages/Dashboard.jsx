@@ -48,7 +48,12 @@ const Dashboard = () => {
       const data = await getDocs(productsCollection);
       setProducts(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
     } catch (err) {
-      console.error("Error fetching products:", err);
+      console.error("Database Connection Error:", err);
+      if (err.message.includes("Database '(default)' not found")) {
+        alert("CRITICAL ERROR: Firestore Database not found! \n\nPlease go to your Firebase Console -> Firestore Database and click 'Create Database'.");
+      } else {
+        alert("Database Error: " + err.message);
+      }
     }
     setLoading(false);
   };
@@ -163,6 +168,15 @@ const Dashboard = () => {
     setShowForm(false);
   };
 
+  const handleTestConnection = async () => {
+    try {
+      await getDocs(productsCollection);
+      alert("✅ Success! Database is connected and ready.");
+    } catch (err) {
+      alert("❌ Database Error: " + err.message + "\n\nPlease make sure Firestore is enabled in your Firebase Console.");
+    }
+  };
+
   const handleEditClick = (product) => {
     setEditingId(product.id);
     setFormData({
@@ -195,6 +209,9 @@ const Dashboard = () => {
           <p>{products.length} Items in Inventory</p>
         </div>
         <div className="header-actions">
+          <button className="seed-btn" onClick={handleTestConnection} style={{ background: '#007aff', color: 'white' }}>
+            Check Connection
+          </button>
           <button className="add-btn" onClick={() => setShowForm(true)}>
             <MdAdd /> Create New
           </button>
