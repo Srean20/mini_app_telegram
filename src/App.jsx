@@ -50,6 +50,9 @@ function Home() {
       }));
       setProducts(productsData);
       setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      setLoading(false);
     });
 
     return () => unsubscribe();
